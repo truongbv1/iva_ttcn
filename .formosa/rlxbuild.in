@@ -1,0 +1,8 @@
+#
+# VNPT Technology JSC.
+#
+# IP Camera Team
+#
+
+#build target
+pkg_$(CONFIG_PACKAGE_iva) += vnpt/iva
