@@ -178,50 +178,70 @@ int data_stream(AVFormatContext** infoContext, char* devName) {
 	return ret;
 }
 
+
 //create background
-void create_background(IplImage* currentFrame, IplImage** background){
-	IplImage* bg = *background;
+void create_background(IplImage* currentFrame, IplImage* background){
+	uchar *bg = background->imageData;
+	uchar *cf = currentFrame->imageData;
 	int sizeImage = currentFrame->width*currentFrame->height;
 	int i = 0;
-	uchar temp_bg = 0, temp_cf = 0;	
-	for (i = 0; i < sizeImage; i++) {
-		temp_bg = (uchar)bg->imageData[i];
-		temp_cf = (uchar)currentFrame->imageData[i];
+	for (i = 0; i < sizeImage; i++, bg++, cf++) {
 
-		if (temp_bg > temp_cf) 	temp_bg--;
-		else if (temp_bg < temp_cf) temp_bg++;	
-		bg->imageData[i] = (char)temp_bg;
-	}				
+		//*bg = (*bg > *cf) ? --(*bg) : ((*bg < *cf) ? ++(*bg) : *bg);	
+		if(*bg > *cf){	
+			(*bg)--;
+			continue;	
+		} 
+		if(*bg < *cf ){
+			(*bg)++;
+			continue;
+		}	
+	}	
 }
 
 //find foreground
 void find_foreground(IplImage* grayImage, IplImage* grayBackground, IplImage* foreground, int valThresh,int learningRate){
     	
-	uchar temp_bg, temp_cf;
-	int i = 0, absDiff = 0, maxThresh = 255;
-	int size = grayImage->width*grayImage->height;	
-    	
-	for(i =0; i<size;i++){
-        	temp_bg = (uchar)grayBackground->imageData[i];
-        	temp_cf = (uchar)grayImage->imageData[i];
+	uchar *cf = grayImage->imageData;
+	uchar *bg = grayBackground->imageData;
+	uchar *fg = foreground->imageData;
+	int i = 0;
+	unsigned char absDiff = 0, maxThresh = 255;
+	int sizeImage = grayImage->width*grayImage->height;	
+	unsigned char val = (unsigned char)valThresh;
+    
+    if(learningRate == 0){
+    	for(i = 0; i < sizeImage ; i++, cf++, bg++, fg++){    	
 
-	        // find foreground : background subtraction
-		absDiff = abs(temp_cf-temp_bg);
-		foreground->imageData[i] = (char)(absDiff > valThresh ? maxThresh : 0);
-		
-	        //update background
-		if(learningRate == 0){
-			if (temp_bg > temp_cf) temp_bg--;
-        	else if (temp_bg < temp_cf) temp_bg++;           
-        	grayBackground->imageData[i] = (char)temp_bg;
+		    // find foreground : background subtraction
+			absDiff = abs((*cf)- (*bg));
+			*fg = (absDiff > val) ? maxThresh : 0;
+			
+		    //update background			
+			//*bg = (*bg > *cf) ? --(*bg) : ((*bg < *cf) ? ++(*bg) : *bg);
+			if(*bg > *cf){	
+				(*bg)--;
+				continue;	
+			} 
+			if(*bg < *cf ){
+				(*bg)++;
+				continue;
+			}			
 		}
-        	
-	}
-	
+    }
+    else
+    {
+    	for(i = 0; i < sizeImage; i++, cf++, bg++, fg++){    	
+
+		    // find foreground : background subtraction
+			absDiff = abs((*cf)- (*bg));
+			*fg = (absDiff > val) ? maxThresh : 0;			
+		}
+    }	
 }
 
 
-int motion_detect(IplImage* grayImage, IplImage** grayBackground, list** listTrack,int learningRate, FILE* pfile)
+int motion_detect(IplImage* grayImage, IplImage* grayBackground, list** listTrack,int learningRate)
 {
 		
 	list* Rects = NULL;
@@ -231,7 +251,7 @@ int motion_detect(IplImage* grayImage, IplImage** grayBackground, list** listTra
 	IplImage* foreground = cvCreateImage(cvSize(grayImage->width, grayImage->height), grayImage->depth, 1);
 
 	// foreground
-	find_foreground(grayImage, *grayBackground, foreground, 40, learningRate);
+	find_foreground(grayImage, grayBackground, foreground, 10, learningRate);
 
 	
 	// find contours
@@ -240,7 +260,7 @@ int motion_detect(IplImage* grayImage, IplImage** grayBackground, list** listTra
 
 
 	for (; contours != NULL; contours = contours->h_next) {
-		if (fabs(cvContourArea(contours, CV_WHOLE_SEQ)) >= 100) {
+		if (fabs(cvContourArea(contours, CV_WHOLE_SEQ)) >= 4) {
 			rect = cvBoundingRect(contours, 0);			
 			push(&Rects, rect);
 		}
@@ -254,12 +274,13 @@ int motion_detect(IplImage* grayImage, IplImage** grayBackground, list** listTra
 	int Num = get_size(Rects);	
 	if (Num) {	
 		// Connect nearby rectangles	
-		connect_nearby_rects(&Rects, 20, 30);	
+		connect_nearby_rects(&Rects, 3, 5);	
 		// object tracking
 		object_tracking(Rects, listTrack);
 		release(&Rects);
 		return 1;	
 	}
+
 	return 0;
 }
 
@@ -345,7 +366,7 @@ int object_tracking(list* rects, list** listTrack) {
 				
 			for (rects_current = rects; rects_current != NULL; rects_current = rects_current->next) {
 							
-				if (rects_current->rect.width*rects_current->rect.height < 400) {
+				if (rects_current->rect.width*rects_current->rect.height < 25) {
 					rects_current->id = -1;
 					count_track++;
 					continue;
@@ -373,7 +394,7 @@ int object_tracking(list* rects, list** listTrack) {
 					if (angle_track >= temp_angle && angle_track <= track->angle + 1) {
 						
 						distance -= (((track->rect.width)*(track->rect.width) + (rects_current->rect.width)*(rects_current->rect.width)) / 4);
-						if (distance <= 400 && rects_current->status == 0) {
+						if (distance <= 50 && rects_current->status == 0) {
 							rects_current->id = track->id;
 							rects_current->status = 1;
 							track->angle = angle_track;
@@ -451,12 +472,12 @@ void get_minmax_line(CvPoint* p1, CvPoint* p2,  CvPoint* pminLine, CvPoint* pmax
 	pmaxLine->y = MAX(p1->y, p2->y);
 	// x1 = x2 || y1 = y2
 	if (pminLine->x == pmaxLine->x) {
-		pminLine->x -= 20;
-		pmaxLine->x += 20;
+		pminLine->x -= 5;
+		pmaxLine->x += 5;
 	}
 	if (pminLine->y == pmaxLine->y) {
-		pminLine->y -= 20;
-		pmaxLine->y += 20;
+		pminLine->y -= 5;
+		pmaxLine->y += 5;
 	}
 	
 }

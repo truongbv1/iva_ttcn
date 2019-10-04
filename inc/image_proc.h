@@ -44,9 +44,9 @@
     *
     *********************************************************/
 	int data_stream(AVFormatContext** infoContext, char* devName);
-    void create_background(IplImage* currentFrame, IplImage** background);    
+    void create_background(IplImage* currentFrame, IplImage* background);    
     void find_foreground(IplImage* grayImage, IplImage* grayBackground, IplImage* foreground, int valThresh, int learningRate);    
-    int motion_detect(IplImage* rawImage, IplImage** grayBackground, list** rects, int number, FILE* pfile);
+    int motion_detect(IplImage* rawImage, IplImage* grayBackground, list** rects, int learningRate);
 
 
     /********************** object tracking ******************

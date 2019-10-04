@@ -18,8 +18,8 @@
 //#define _HEIGHT	720
 
 // video51 1280x720
-#define _WIDTH	640 // for video53, 52
-#define _HEIGHT	480
+#define _WIDTH	80 // for video53, 52
+#define _HEIGHT	60
 #define _IMAGE_SIZE	_WIDTH*_HEIGHT
 
 
@@ -36,13 +36,20 @@ static int g_exit = 0;
 				printf("\n\n=========================================END=============================================\n\n");             \
 			}                                                                                                                            \
 		} while (0);                                                                                                                     \
-	} //Debug
+	}
 
 static void Termination(int sign)
 {
 	g_exit = 1;
 }
-
+void resizeImage(char *src, char *dst){
+	int i = 0;
+	for (i = 0; i < 307200; i++, src++){
+		if(i%64==0){
+			*dst++ = *src;
+		}
+	}
+}
 
 int main(int argc, char *argv[])
 {
@@ -66,9 +73,10 @@ int main(int argc, char *argv[])
 	****************************************************************************/
 	IplImage* grayImage = cvCreateImage(cvSize(_WIDTH, _HEIGHT), 8, 1);	
 	IplImage* grayBackground = cvCreateImage(cvSize(_WIDTH, _HEIGHT), 8, 1);	
+	char *img = (char*)malloc(_IMAGE_SIZE*sizeof(char));
 	
-	list* listTrack = NULL;
-	FILE* pFile = NULL;
+	//FILE* pFile = NULL;
+	list* listTrack = NULL;	
 	int number = 0, learningRate = 30;
 	// motion detection
 	int motionDetectFlag = 0;
@@ -76,16 +84,16 @@ int main(int argc, char *argv[])
 
 	// line crossing
 	CvPoint p1, p2, pminLine, pmaxLine;
-	p1.x = 150; p1.y = 200;
-	p2.x = 528; p2.y = 313;
+	p1.x = 18; p1.y = 25;
+	p2.x = 66; p2.y = 39;
 	int direction = 0; // 1 : A->B , -1: B->A, 0: A<=>B
 	direction_line_crossing(&p1, &p2);
 	get_minmax_line(&p1, &p2, &pminLine, &pmaxLine);
 	
 	// intrusion detection
 	int nvert = 5; // 5 vertices
-	int vertx[] = { 50,100,200,220, 120 };
-	int verty[] = { 50, 40, 80, 120,100 };		
+	int vertx[] = { 5, 10, 20, 20, 20 };
+	int verty[] = { 50, 40, 40, 10,10 };		
 	int intrusionDetectFlag = 0;
 	int delayEventIntrusion = 0;
 
@@ -102,12 +110,14 @@ int main(int argc, char *argv[])
 		}
 		
 		usleep(1000);
+		resizeImage(inPacket.data,img);
 		// Motion detect
-		grayImage->imageData = (char *)inPacket.data;		
+		//grayImage->imageData = (char *)inPacket.data;	
+		grayImage->imageData = img;	
 		if(number >= 256) {
 			
 			
-			if(motion_detect(grayImage, &grayBackground, &listTrack, learningRate, pFile) == 1){
+			if(motion_detect(grayImage, grayBackground, &listTrack, learningRate) == 1){
 				if(!motionDetectFlag){
 					if(delayEventMotion == 5){
 						printf("-------------> Motion detected <------------\n");
@@ -143,16 +153,15 @@ int main(int argc, char *argv[])
 				if(motionDetectFlag) printf("---------------> End motion <---------------\n");
 				motionDetectFlag = 0;
 			} 			
-
+			
 			if(learningRate > 0){
 				learningRate--;
 			}else{
 				learningRate = 30;
 			}
 			
-			
 		}else{
-			create_background(grayImage,&grayBackground);
+			create_background(grayImage,grayBackground);
 		}				
 		if(number < 256) {
 			if(number == 255) printf("-------------->done!\ndetection:\n");
