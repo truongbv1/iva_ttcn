@@ -8,9 +8,13 @@
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 
-//#include <rtscamkit.h>
-//#include <rtsavapi.h>
-//#include <rtsvideo.h>
+// socket
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h> 
+#include <arpa/inet.h>
+#include <errno.h>
 
 // image processing
 #include "../inc/cxcore.h"
@@ -24,10 +28,17 @@ typedef struct list
     struct list *next;
     int id;
     int status;
-    int level;
+    int trackLevel;
+    int crossLevel;
     int angle;
     CvRect rect;
 } list;
+
+extern list *rects_sk;
+extern int socket_flag;
+
+extern char* hostname;
+extern char* port;
 
 int get_size(list *Rects);
 void print_list_rect(list *Rects);
@@ -44,7 +55,7 @@ int data_stream(AVFormatContext **infoContext, char *devName);
 void resize_image(IplImage *img, IplImage *img_resized);
 void create_background(IplImage *currentFrame, IplImage *background);
 void find_foreground(IplImage *grayImage, IplImage *grayBackground, IplImage *foreground, int valThresh, int learningRate);
-int motion_detect(IplImage *rawImage, IplImage *grayBackground, list **rects, int learningRate);
+int motion_detect(IplImage *grayImage, IplImage *grayBackground, list **listTrack, int learningRate, int valThresh, int delta_w, int delta_h, int area_min);
 
 /********************** object tracking ******************
     *
@@ -66,3 +77,5 @@ void line_crossing(CvPoint p1, CvPoint p2, CvPoint pminLine, CvPoint pmaxLine, l
     ********************************************************/
 int point_polygon_test(int nvert, int *vertx, int *verty, int testx, int testy);
 int intrusion(list *rects, int nvert, int *vertx, int *verty);
+
+int send_server();

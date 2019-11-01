@@ -28,7 +28,8 @@ void push(list **Rects, CvRect rect)
         current->id = 0;
         current->prev = NULL;
         current->next = NULL;
-        current->level = 0;
+        current->trackLevel = 0;
+        current->crossLevel = 0;
         current->status = 0;
         current->angle = -1;
         *Rects = current;
@@ -44,7 +45,8 @@ void push(list **Rects, CvRect rect)
         current->next->prev = current;
         current->next->next = NULL;
         current->next->rect = rect;
-        current->next->level = 0;
+        current->next->trackLevel = 0;
+        current->next->crossLevel = 0;
         current->next->status = 0;
         current->next->angle = -1;
     }
@@ -287,7 +289,7 @@ void find_foreground(IplImage *grayImage, IplImage *grayBackground, IplImage *fo
     }
 }
 
-int motion_detect(IplImage *grayImage, IplImage *grayBackground, list **listTrack, int learningRate)
+int motion_detect(IplImage *grayImage, IplImage *grayBackground, list **listTrack, int learningRate, int valThresh, int delta_w, int delta_h, int area_min)
 {
     list *Rects = NULL;
     CvRect rect;
@@ -296,7 +298,7 @@ int motion_detect(IplImage *grayImage, IplImage *grayBackground, list **listTrac
     IplImage *foreground = cvCreateImage(cvSize(grayImage->width, grayImage->height), grayImage->depth, 1);
 
     // foreground
-    find_foreground(grayImage, grayBackground, foreground, 18, learningRate);
+    find_foreground(grayImage, grayBackground, foreground, valThresh, learningRate);
 
     // find contours
     cvFindContours(foreground, storage, &contours, sizeof(CvContour),
@@ -304,7 +306,7 @@ int motion_detect(IplImage *grayImage, IplImage *grayBackground, list **listTrac
 
     for (; contours != NULL; contours = contours->h_next)
     {
-        if (fabs(cvContourArea(contours, CV_WHOLE_SEQ)) >= 4)
+        if (fabs(cvContourArea(contours, CV_WHOLE_SEQ)) > area_min)
         {
             rect = cvBoundingRect(contours, 0);
             push(&Rects, rect);
@@ -318,7 +320,7 @@ int motion_detect(IplImage *grayImage, IplImage *grayBackground, list **listTrac
     if (Num)
     {
         // Connect nearby rectangles
-        connect_nearby_rects(&Rects, 3, 5);
+        connect_nearby_rects(&Rects, delta_w, delta_h);
         // object tracking
         object_tracking(Rects, listTrack);
         //Num = get_size(*listTrack);
@@ -462,9 +464,9 @@ int object_tracking(list *rects, list **listTrack)
             }
             if (count_track == size_rects)
             {
-                track->level++;
+                track->trackLevel++;
                 // if over 2 frame is not detected then delete
-                if (track->level > 1)
+                if (track->trackLevel > 1)
                 {
                     if (track->prev == NULL)
                     {
@@ -529,15 +531,15 @@ void get_minmax_line(CvPoint *p1, CvPoint *p2, CvPoint *pminLine, CvPoint *pmaxL
     pmaxLine->x = MAX(p1->x, p2->x);
     pmaxLine->y = MAX(p1->y, p2->y);
     // x1 = x2 || y1 = y2
-    if (pminLine->x == pmaxLine->x)
+    if ((pmaxLine->x - pminLine->x) < 30)
     {
-        pminLine->x -= 5;
-        pmaxLine->x += 5;
+        pminLine->x -= 10;
+        pmaxLine->x += 10;
     }
-    if (pminLine->y == pmaxLine->y)
+    if ((pmaxLine->y - pminLine->y) < 20)
     {
-        pminLine->y -= 5;
-        pmaxLine->y += 5;
+        pminLine->y -= 8;
+        pmaxLine->y += 8;
     }
 }
 
@@ -579,7 +581,13 @@ void line_crossing(CvPoint p1, CvPoint p2, CvPoint pminLine, CvPoint pmaxLine, l
                 {
                     if (options >= 0)
                     {
-                        printf("\n-----------> Line crossing A-> B\n");
+                    	if(track->crossLevel == 0)
+                    	{
+	                        printf("\n-----------> Line crossing A-> B\n");
+	                        track->crossLevel = 1;
+	                        
+                    	}                    	
+                    	
                     }
                 }
                 else
@@ -587,14 +595,35 @@ void line_crossing(CvPoint p1, CvPoint p2, CvPoint pminLine, CvPoint pmaxLine, l
                     if (track->status == 1 && tmp == -1)
                     {
                         if (options <= 0)
-                        {
-                            printf("-----------> Line crossing      B-> A\n");
+                        {                            
+                            if(track->crossLevel == 0)
+                    		{
+	                        	printf("-----------> Line crossing      B-> A\n");
+	                        	track->crossLevel = -1;	                        
+                    		} 
                         }
                     }
                 }
             }
             track->status = tmp;
         }
+
+        if(track->crossLevel > 100 || track->crossLevel < -100)
+        {
+        	track->crossLevel = 0;
+        	continue;
+        }
+        if(track->crossLevel > 0)
+        {
+        	track->crossLevel ++; 
+        	continue;
+        }
+        if(track->crossLevel < 0)
+        {
+        	track->crossLevel --;
+        	 continue;
+        }
+        
     }
 }
 
@@ -623,5 +652,84 @@ int intrusion(list *rects, int nvert, int *vertx, int *verty)
             return 1;
         }
     }
+    return 0;
+}
+
+list *rects_sk = NULL;
+int socket_flag = 0;
+
+char* hostname = NULL;
+char* port = NULL;
+int send_server()
+{
+	
+    int sockfd, portno, n;
+    struct sockaddr_in serv_addr; //Cau truc chua dia chi server ma client can biet de ket noi toi
+
+    char sendbuff[1024];
+    char recvbuff[1024];
+
+    portno = atoi(port); //Chuyen cong dich vu thanh so nguyen
+    //portno = 9000;
+    //Tao socket
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) 
+        printf("\n Error : Could not create socket \n");      
+    
+    memset(&serv_addr, '0', sizeof(serv_addr));
+
+    //Thiet lap dia chi cua server de ket noi den
+    serv_addr.sin_family = AF_INET;        //Mac dinh
+    serv_addr.sin_port = htons(portno);    //Cong dich vu   
+    //Dia chi ip/domain may chu
+    if(inet_pton(AF_INET, hostname, &serv_addr.sin_addr)<=0)
+    {
+        printf("\n inet_pton error occured\n");
+        return 1;
+    }
+    //Goi ham connect de thuc hien mot ket noi den server
+    if( connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+    {
+       printf("\n Error : Connect Failed \n");
+       return 1;
+    }
+       
+    printf("socket ..\n");    
+    memset(sendbuff, 0, 1024); //Khoi tao buffer
+    char *p = sendbuff;
+    int size_r = 0;
+    int scale = 1; // 1280
+    //int delta_scale = 160; // for 1280
+    
+    //char *s = "123 22 232 232,34 200 343 545,546 456 250 54";
+    while(1){
+
+	    if(rects_sk != NULL && socket_flag == 0){
+	    	//printf("socket:\n");
+    		//print_list_rect(rects_sk);
+	    	memset(sendbuff, 0, 1024);
+		    list *current = rects_sk;
+		    for (current = rects_sk; current != NULL; current = current->next)
+		    {
+		    	size_r = strlen(sendbuff);
+		    	if (size_r < 1024){
+		    		sprintf(p + size_r, "%d %d %d %d,", scale*current->rect.x, scale*current->rect.y, scale*current->rect.width, scale*current->rect.height);
+		    	}    	
+
+		    }
+		    
+		    //printf("%s\n",sendbuff);    		
+		    n = write(sockfd, sendbuff, strlen(sendbuff));
+		    if (n < 0) printf("ERROR writing notification to socket");
+
+		    release(&rects_sk);
+    		socket_flag =1;
+    	}
+    	
+	    usleep(100);
+    }
+    
+    
+    close(sockfd); //Dong socket
     return 0;
 }
