@@ -1,8 +1,8 @@
-
-#include "../inc/image_proc.h"
-
 #include <stdio.h>  //printf
 #include <stdlib.h> //malloc
+#include "image_proc.h"
+#include "interface_iva.h"
+
 
 void print_list_rect(list *Rects)
 {
@@ -418,9 +418,8 @@ int object_tracking(list *rects, list **listTrack)
             count_track = 0;
 
             for (rects_current = rects; rects_current != NULL; rects_current = rects_current->next)
-            {
-                /*			
-				if (rects_current->rect.width*rects_current->rect.height < 2) {
+            {                			
+				/*if (rects_current->rect.width*rects_current->rect.height < 4) {
 					rects_current->id = -1;
 					count_track++;
 					continue;
@@ -496,7 +495,7 @@ int object_tracking(list *rects, list **listTrack)
 
 //#include <sys/stat.h>
 // check last modification of file
-int check_modification_file(const char *path, time_t oldMTime)
+/*int check_modification_file(const char *path, time_t oldMTime)
 {
     struct stat fileStat;
     int err = stat(path, &fileStat);
@@ -506,7 +505,7 @@ int check_modification_file(const char *path, time_t oldMTime)
         exit(errno);
     }
     return fileStat.st_mtime > oldMTime;
-}
+}*/
 
 // line crossing
 void direction_line_crossing(CvPoint *p1, CvPoint *p2)
@@ -583,8 +582,9 @@ void line_crossing(CvPoint p1, CvPoint p2, CvPoint pminLine, CvPoint pmaxLine, l
                     {
                     	if(track->crossLevel == 0)
                     	{
-	                        printf("\n-----------> Line crossing A-> B\n");
 	                        track->crossLevel = 1;
+                            printf("\n-----------> Line crossing A-> B\n");
+	                        msgq_send(msqid, "A->B");
 	                        
                     	}                    	
                     	
@@ -598,8 +598,9 @@ void line_crossing(CvPoint p1, CvPoint p2, CvPoint pminLine, CvPoint pmaxLine, l
                         {                            
                             if(track->crossLevel == 0)
                     		{
-	                        	printf("-----------> Line crossing      B-> A\n");
-	                        	track->crossLevel = -1;	                        
+	                        	track->crossLevel = -1;                    
+                                printf("-----------> Line crossing      B-> A\n");
+                                msgq_send(msqid, "B->A");	                        	       
                     		} 
                         }
                     }
@@ -652,84 +653,5 @@ int intrusion(list *rects, int nvert, int *vertx, int *verty)
             return 1;
         }
     }
-    return 0;
-}
-
-list *rects_sk = NULL;
-int socket_flag = 0;
-
-char* hostname = NULL;
-char* port = NULL;
-int send_server()
-{
-	
-    int sockfd, portno, n;
-    struct sockaddr_in serv_addr; //Cau truc chua dia chi server ma client can biet de ket noi toi
-
-    char sendbuff[1024];
-    char recvbuff[1024];
-
-    portno = atoi(port); //Chuyen cong dich vu thanh so nguyen
-    //portno = 9000;
-    //Tao socket
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) 
-        printf("\n Error : Could not create socket \n");      
-    
-    memset(&serv_addr, '0', sizeof(serv_addr));
-
-    //Thiet lap dia chi cua server de ket noi den
-    serv_addr.sin_family = AF_INET;        //Mac dinh
-    serv_addr.sin_port = htons(portno);    //Cong dich vu   
-    //Dia chi ip/domain may chu
-    if(inet_pton(AF_INET, hostname, &serv_addr.sin_addr)<=0)
-    {
-        printf("\n inet_pton error occured\n");
-        return 1;
-    }
-    //Goi ham connect de thuc hien mot ket noi den server
-    if( connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-    {
-       printf("\n Error : Connect Failed \n");
-       return 1;
-    }
-       
-    printf("socket ..\n");    
-    memset(sendbuff, 0, 1024); //Khoi tao buffer
-    char *p = sendbuff;
-    int size_r = 0;
-    int scale = 1; // 1280
-    //int delta_scale = 160; // for 1280
-    
-    //char *s = "123 22 232 232,34 200 343 545,546 456 250 54";
-    while(1){
-
-	    if(rects_sk != NULL && socket_flag == 0){
-	    	//printf("socket:\n");
-    		//print_list_rect(rects_sk);
-	    	memset(sendbuff, 0, 1024);
-		    list *current = rects_sk;
-		    for (current = rects_sk; current != NULL; current = current->next)
-		    {
-		    	size_r = strlen(sendbuff);
-		    	if (size_r < 1024){
-		    		sprintf(p + size_r, "%d %d %d %d,", scale*current->rect.x, scale*current->rect.y, scale*current->rect.width, scale*current->rect.height);
-		    	}    	
-
-		    }
-		    
-		    //printf("%s\n",sendbuff);    		
-		    n = write(sockfd, sendbuff, strlen(sendbuff));
-		    if (n < 0) printf("ERROR writing notification to socket");
-
-		    release(&rects_sk);
-    		socket_flag =1;
-    	}
-    	
-	    usleep(100);
-    }
-    
-    
-    close(sockfd); //Dong socket
     return 0;
 }

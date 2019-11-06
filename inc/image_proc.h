@@ -8,20 +8,11 @@
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 
-// socket
-#include <string.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h> 
-#include <arpa/inet.h>
-#include <errno.h>
-
 // image processing
-#include "../inc/cxcore.h"
-#include "../inc/cxtypes.h"
+#include "cxcore.h"
+#include "cxtypes.h"
 
-#include <sys/stat.h> //check modification : file
-                      // list of rectangles
+// list of rectangles
 typedef struct list
 {
     struct list *prev;
@@ -34,11 +25,7 @@ typedef struct list
     CvRect rect;
 } list;
 
-extern list *rects_sk;
-extern int socket_flag;
-
-extern char* hostname;
-extern char* port;
+extern list *rects_sk; //list for socket
 
 int get_size(list *Rects);
 void print_list_rect(list *Rects);
@@ -49,8 +36,8 @@ CvRect rect_max(CvRect rect1, CvRect rect2);
 void connect_nearby_rects(list **Rects, int delta_w, int delta_h);
 
 /********************* motion detection ******************
-    *
-    *********************************************************/
+*
+*********************************************************/
 int data_stream(AVFormatContext **infoContext, char *devName);
 void resize_image(IplImage *img, IplImage *img_resized);
 void create_background(IplImage *currentFrame, IplImage *background);
@@ -58,24 +45,22 @@ void find_foreground(IplImage *grayImage, IplImage *grayBackground, IplImage *fo
 int motion_detect(IplImage *grayImage, IplImage *grayBackground, list **listTrack, int learningRate, int valThresh, int delta_w, int delta_h, int area_min);
 
 /********************** object tracking ******************
-    *
-    *********************************************************/
+*
+*********************************************************/
 int find_object_direction(CvPoint p1, CvPoint p2);
 double overlap_box(CvRect box1, CvRect box2);
 int object_tracking(list *rects, list **listTrack);
 
 /********************** line crossing ********************
-    * 
-    *********************************************************/
+* 
+*********************************************************/
 void get_minmax_line(CvPoint *p1, CvPoint *p2, CvPoint *pminLine, CvPoint *pmaxLine);
 void direction_line_crossing(CvPoint *p1, CvPoint *p2);
 //int setup_line_input(char* filename, CvPoint* p1, CvPoint* p2, CvPoint* pminLine, CvPoint* pmaxLine, int options);
 void line_crossing(CvPoint p1, CvPoint p2, CvPoint pminLine, CvPoint pmaxLine, list *listTrack, int options);
 
 /******************* intrusion detection ****************
-    *
-    ********************************************************/
+*
+********************************************************/
 int point_polygon_test(int nvert, int *vertx, int *verty, int testx, int testy);
 int intrusion(list *rects, int nvert, int *vertx, int *verty);
-
-int send_server();
