@@ -7,8 +7,8 @@
 
 ./iva :	default is motion detection, line crossing and intrusion detection
 
-[options] 
--m : motion detection 
+[options]
+-m : motion detection
 -l : motion detection and line crossing
 -i : motion detection and intrusion detection
 
