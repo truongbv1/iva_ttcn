@@ -11,8 +11,7 @@
 #include <netinet/in.h>
 #include <netdb.h> 
 #include <arpa/inet.h>
-//check modification : file
-//#include <sys/stat.h> 
+
 
 /***************************** message queue *******************************
 *
@@ -35,7 +34,3 @@ extern char* hostname;
 extern char* port;
 
 int send_server();
-
-/********************************* json ************************************
-*
-****************************************************************************/

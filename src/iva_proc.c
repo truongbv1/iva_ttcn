@@ -1,7 +1,7 @@
 #include <stdio.h>  //printf
 #include <stdlib.h> //malloc
-#include "image_proc.h"
-#include "interface_iva.h"
+#include "iva_proc.h"
+#include "iva_interface.h"
 
 
 void print_list_rect(list *Rects)
@@ -289,7 +289,7 @@ void find_foreground(IplImage *grayImage, IplImage *grayBackground, IplImage *fo
     }
 }
 
-int motion_detect(IplImage *grayImage, IplImage *grayBackground, list **listTrack, int learningRate, int valThresh, int delta_w, int delta_h, int area_min)
+int motion_detect(IplImage *grayImage, IplImage *grayBackground, list **listTrack, motion_detection_iva md_cfg)
 {
     list *Rects = NULL;
     CvRect rect;
@@ -298,7 +298,7 @@ int motion_detect(IplImage *grayImage, IplImage *grayBackground, list **listTrac
     IplImage *foreground = cvCreateImage(cvSize(grayImage->width, grayImage->height), grayImage->depth, 1);
 
     // foreground
-    find_foreground(grayImage, grayBackground, foreground, valThresh, learningRate);
+    find_foreground(grayImage, grayBackground, foreground, md_cfg.varThresh, md_cfg.learningRate);
 
     // find contours
     cvFindContours(foreground, storage, &contours, sizeof(CvContour),
@@ -306,7 +306,7 @@ int motion_detect(IplImage *grayImage, IplImage *grayBackground, list **listTrac
 
     for (; contours != NULL; contours = contours->h_next)
     {
-        if (fabs(cvContourArea(contours, CV_WHOLE_SEQ)) > area_min)
+        if (fabs(cvContourArea(contours, CV_WHOLE_SEQ)) > md_cfg.area_min)
         {
             rect = cvBoundingRect(contours, 0);
             push(&Rects, rect);
@@ -320,11 +320,10 @@ int motion_detect(IplImage *grayImage, IplImage *grayBackground, list **listTrac
     if (Num)
     {
         // Connect nearby rectangles
-        connect_nearby_rects(&Rects, delta_w, delta_h);
+        connect_nearby_rects(&Rects, md_cfg.delta_w, md_cfg.delta_h);
         // object tracking
         object_tracking(Rects, listTrack);
-        //Num = get_size(*listTrack);
-        //printf("%d\n", Num);
+
         release(&Rects);
         return 1;
     }
@@ -507,70 +506,19 @@ int object_tracking(list *rects, list **listTrack)
     return fileStat.st_mtime > oldMTime;
 }*/
 
-// line crossing
-void direction_line_crossing(CvPoint *p1, CvPoint *p2)
-{
-    // set default direction
-    if (((p1->x < p2->x) && (p1->y > p2->y)) || ((p1->x > p2->x) && (p1->y >= p2->y)) || (p1->y > p2->y))
-    {
-        // swap point_1 and point_2
-        CvPoint temp = *p1;
-        *p1 = *p2;
-        *p2 = temp;
-    }
-}
 
-void get_minmax_line(CvPoint *p1, CvPoint *p2, CvPoint *pminLine, CvPoint *pmaxLine)
-{
-
-    // pmin_line : (x; y)min = min(xp1, xp2 ; yp1, yp2)
-    pminLine->x = MIN(p1->x, p2->x);
-    pminLine->y = MIN(p1->y, p2->y);
-    // pmax_line : (x; y)max = max(xp1, xp2 ; yp1, yp2)
-    pmaxLine->x = MAX(p1->x, p2->x);
-    pmaxLine->y = MAX(p1->y, p2->y);
-    // x1 = x2 || y1 = y2
-    if ((pmaxLine->x - pminLine->x) < 30)
-    {
-        pminLine->x -= 10;
-        pmaxLine->x += 10;
-    }
-    if ((pmaxLine->y - pminLine->y) < 20)
-    {
-        pminLine->y -= 8;
-        pmaxLine->y += 8;
-    }
-}
-
-/*int setup_line_input(char* filename, CvPoint* p1, CvPoint* p2,  CvPoint* pminLine, CvPoint* pmaxLine, int options){
-	// check last modification of file
-
-
-	// read file
-	
-
-	// set default direction
-	direction_line_crossing(p1, p2);
-
-	// create area to detect line crossing
-	get_minmax_line(p1, p2, pminLine, pmaxLine);
-
-	return 1;
-
-}*/
-
-void line_crossing(CvPoint p1, CvPoint p2, CvPoint pminLine, CvPoint pmaxLine, list *listTrack, int options)
+void line_crossing(line_crossing_iva lc_cfg, list *listTrack)
 {
     list *track = listTrack;
     int tmp = 0;
     for (track = listTrack; track != NULL; track = track->next)
     {
-        if ((track->rect.x + track->rect.width / 2 > pminLine.x &&
-             track->rect.x + track->rect.width / 2 < pmaxLine.x) &&
-            (track->rect.y + track->rect.height / 2 > pminLine.y &&
-             track->rect.y + track->rect.height / 2 < pmaxLine.y))
+        if (track->rect.x + track->rect.width / 2 > lc_cfg.minX &&
+            track->rect.x + track->rect.width / 2 < lc_cfg.maxX &&
+            track->rect.y + track->rect.height / 2 > lc_cfg.minY &&
+             track->rect.y + track->rect.height / 2 < lc_cfg.maxY)
         {
-            tmp = (p2.y - p1.y) * (track->rect.x + track->rect.width / 2) - (p2.x - p1.x) * (track->rect.y + track->rect.height / 2) + p2.x * p1.y - p2.y * p1.x;
+            tmp = (lc_cfg.endY - lc_cfg.startY) * (track->rect.x + track->rect.width / 2) - (lc_cfg.endX - lc_cfg.startX) * (track->rect.y + track->rect.height / 2) + lc_cfg.endX*lc_cfg.startY - lc_cfg.endY*lc_cfg.startX;
             tmp = (tmp > 0 ? 1 : -1);
             if (track->status == 0)
                 track->status = tmp;
@@ -578,30 +526,29 @@ void line_crossing(CvPoint p1, CvPoint p2, CvPoint pminLine, CvPoint pmaxLine, l
             {
                 if (track->status == -1 && tmp == 1)
                 {
-                    if (options >= 0)
+                    if (lc_cfg.direction >= 0)
                     {
-                    	if(track->crossLevel == 0)
-                    	{
-	                        track->crossLevel = 1;
+                        if(track->crossLevel == 0)
+                        {
+                            track->crossLevel = 1;
                             printf("\n-----------> Line crossing A-> B\n");
-	                        msgq_send(msqid, "A->B");
-	                        
-                    	}                    	
-                    	
+                            msgq_send(msqid, "A->B");                            
+                        }                       
+                        
                     }
                 }
                 else
                 {
                     if (track->status == 1 && tmp == -1)
                     {
-                        if (options <= 0)
+                        if (lc_cfg.direction <= 0)
                         {                            
                             if(track->crossLevel == 0)
-                    		{
-	                        	track->crossLevel = -1;                    
+                            {
+                                track->crossLevel = -1;                    
                                 printf("-----------> Line crossing      B-> A\n");
-                                msgq_send(msqid, "B->A");	                        	       
-                    		} 
+                                msgq_send(msqid, "B->A");                                      
+                            } 
                         }
                     }
                 }
@@ -611,36 +558,37 @@ void line_crossing(CvPoint p1, CvPoint p2, CvPoint pminLine, CvPoint pmaxLine, l
 
         if(track->crossLevel > 100 || track->crossLevel < -100)
         {
-        	track->crossLevel = 0;
-        	continue;
+            track->crossLevel = 0;
+            continue;
         }
         if(track->crossLevel > 0)
         {
-        	track->crossLevel ++; 
-        	continue;
+            track->crossLevel ++; 
+            continue;
         }
         if(track->crossLevel < 0)
         {
-        	track->crossLevel --;
-        	 continue;
+            track->crossLevel --;
+             continue;
         }
         
     }
 }
 
 // intrusion
-int point_polygon_test(int nvert, int *vertx, int *verty, int testx, int testy)
+int point_polygon_test(intrusion_iva its_cfg, int testx, int testy)
 {
     int i, j, c = 0;
-    for (i = 0, j = nvert - 1; i < nvert; j = i++)
+    for (i = 0, j = its_cfg.nvert - 1; i < its_cfg.nvert; j = i++)
     {
-        if (((verty[i] > testy) != (verty[j] > testy)) &&
-            (testx < (vertx[j] - vertx[i]) * (testy - verty[i]) / (verty[j] - verty[i]) + vertx[i]))
+        if (((its_cfg.vertY[i] > testy) != (its_cfg.vertY[j] > testy)) &&
+            (testx < (its_cfg.vertX[j] - its_cfg.vertX[i]) * (testy - its_cfg.vertY[i]) / (its_cfg.vertY[j] - its_cfg.vertY[i]) + its_cfg.vertX[i]))
             c = !c;
     }
     return c;
 }
-int intrusion(list *rects, int nvert, int *vertx, int *verty)
+
+int intrusion_detection(intrusion_iva its_cfg ,list *rects)
 {
     list *current = rects;
     int testx = 0, testy = 0;
@@ -648,7 +596,7 @@ int intrusion(list *rects, int nvert, int *vertx, int *verty)
     {
         testx = current->rect.x + current->rect.width / 2;
         testy = current->rect.y + current->rect.height;
-        if (point_polygon_test(nvert, vertx, verty, testx, testy))
+        if (point_polygon_test(its_cfg, testx, testy))
         {
             return 1;
         }

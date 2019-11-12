@@ -7,12 +7,10 @@
 #include <sys/types.h>
 // thread
 #include <pthread.h>
-
-// image processing
-#include "image_proc.h"
-
+// iva processing
+#include "iva_proc.h"
 // message queue , socket, cfg
-#include "interface_iva.h"
+#include "iva_interface.h"
 
 #ifndef DEBUG
 #define DEBUG 1
@@ -56,7 +54,6 @@ static void Termination(int sign)
 
 int main(int argc, char *argv[])
 {   
-
     /********************************* iva *************************************
 	* motion detection
 	* object tracking
@@ -66,36 +63,37 @@ int main(int argc, char *argv[])
     IplImage *img = cvCreateImage(cvSize(WIDTH, HEIGHT), 8, 1);
     IplImage *grayImage = cvCreateImage(cvSize(_WIDTH, _HEIGHT), 8, 1);
     IplImage *grayBackground = cvCreateImage(cvSize(_WIDTH, _HEIGHT), 8, 1);
-    //resize
 
-    //FILE* pFile = NULL;
-    list *listTrack = NULL;
     int number = 0;
-    int learningRate = 15;
-    int varThresh = 20;
-    int delta_w = 2;
-    int delta_h = 3;
-    int area_min = 2;
-    int option = 0; // all or MD or LC or ID
-    // motion detection
+    int option = 0; // all or MD or LC or ID   
+    list *listTrack = NULL;  
+    char* filename_json = "iva.json";  
+
+    // motion detection 
+    motion_detection_iva md_cfg;
+    md_cfg.delta_w = 2;
+    md_cfg.delta_h = 3;
+    md_cfg.area_min = 2;
+    md_cfg.varThresh = 20;
+	md_cfg.learningRate = 15;	
 	int delayEventMD = 0;
 	int eventFlagMD = 0;
 	int delayEndMD = 0;
 	int endFlagMD = 0;
 
-    // line crossing
-    CvPoint p1, p2, pminLine, pmaxLine;
-    char* op = NULL;    
-    int direction = 0; // 1 : A->B , -1: B->A, 0: A<=>B
-    //direction_line_crossing(&p1, &p2);
-    //get_minmax_line(&p1, &p2, &pminLine, &pmaxLine);
+	// line crossing
+	line_crossing_iva lc_cfg;
 
-    // intrusion detection
-    int nvert = 4; // 5 vertices
-    int vertx[] = {57, 70, 80, 62};
-    int verty[] = {40, 37, 45, 50};
-    int intrusionDetectFlag = 0;
+	// intrusion detection    
+	intrusion_iva its_cfg;
+	int intrusionDetectFlag = 0;
     int delayEventIntrusion = 0;
+
+	// setup
+	setup_cfg(filename_json, _WIDTH, _HEIGHT, &lc_cfg, &its_cfg);
+	if(lc_cfg.enable_lc == 0 && its_cfg.enable_its == 0) option = RUN_MD;
+	if(lc_cfg.enable_lc == 1 && its_cfg.enable_its == 0) option = RUN_LC;
+	if(lc_cfg.enable_lc == 0 && its_cfg.enable_its == 1) option = RUN_ID;    
 
 	if(argc == 2 && (strcmp(argv[1],"-help") == 0 || strcmp(argv[1],"?") == 0))
 	{
@@ -106,11 +104,11 @@ int main(int argc, char *argv[])
 		printf("-l : \tmotion detection and line crossing\n");
 		printf("-i : \tmotion detection and intrusion detection\n");
 		printf("[parameters]\n"); 
-    	printf("--varThresh : \tthreshold value of foreground and background (default = %d)\n", varThresh);
-    	printf("--delta_w : \tdelta-width for connect nearby rectangle (default = %d)\n", delta_w);
-    	printf("--delta_h : \tdelta-height for connect nearby rectangle (default = %d)\n", delta_h);
-    	printf("--area_min : \tarea min for object deteted (default = %d)\n", area_min);
-    	printf("--learningRate : \tlearning rate for update background (default = %d)\n", learningRate);
+    	printf("--varThresh : \tthreshold value of foreground and background (default = %d)\n", md_cfg.varThresh);
+    	printf("--delta_w : \tdelta-width for connect nearby rectangle (default = %d)\n", md_cfg.delta_w);
+    	printf("--delta_h : \tdelta-height for connect nearby rectangle (default = %d)\n", md_cfg.delta_h);
+    	printf("--area_min : \tarea min for object deteted (default = %d)\n", md_cfg.area_min);
+    	printf("--learningRate : \tlearning rate for update background (default = %d)\n", md_cfg.learningRate);
     	printf("--hostname :\t static ip of server (default = %s)\n", hostname);
     	printf("--port : \tport connect to server (default = %s)\n", port);
     	printf("--camera : \tin (indoor) or out (outdoor)\n");
@@ -127,14 +125,14 @@ int main(int argc, char *argv[])
 			if(strcmp(argv[i],"-l")==0){option = RUN_LC; continue;}
 			if(strcmp(argv[i],"-i")==0){option = RUN_ID; continue;}
 
-			if(strcmp(argv[i],"--varThresh")==0){varThresh = atoi(argv[++i]); continue;}
-			if(strcmp(argv[i],"--delta_w")==0)	{delta_w = atoi(argv[++i]); continue;}
-			if(strcmp(argv[i],"--delta_h")==0)	{delta_h = atoi(argv[++i]); continue;}
-			if(strcmp(argv[i],"--area_min")==0)	{area_min = atoi(argv[++i]); continue;}
-			if(strcmp(argv[i],"--learningRate")==0)	{learningRate = atoi(argv[++i]); continue;}
+			if(strcmp(argv[i],"--varThresh")==0){md_cfg.varThresh = atoi(argv[++i]); continue;}
+			if(strcmp(argv[i],"--delta_w")==0)	{md_cfg.delta_w = atoi(argv[++i]); continue;}
+			if(strcmp(argv[i],"--delta_h")==0)	{md_cfg.delta_h = atoi(argv[++i]); continue;}
+			if(strcmp(argv[i],"--area_min")==0)	{md_cfg.area_min = atoi(argv[++i]); continue;}
+			if(strcmp(argv[i],"--learningRate")==0)	{md_cfg.learningRate = atoi(argv[++i]); continue;}
 			if(strcmp(argv[i],"--hostname")==0)	{hostname = argv[++i]; continue;}
 			if(strcmp(argv[i],"--port")==0)		{port = argv[++i]; continue;}
-			if(strcmp(argv[i],"--camera")==0)	{op = argv[++i]; continue;}
+			//if(strcmp(argv[i],"--camera")==0)	{op = argv[++i]; continue;}
 			printf("unknown? argument %s\n", argv[i]);
 			return 0;			
 		}
@@ -145,45 +143,16 @@ int main(int argc, char *argv[])
 		if(option == RUN_MD) printf("option : \tMotion detection\n");
 		if(option == RUN_LC) printf("option : \tLine crossing\n");
 		if(option == RUN_ID) printf("option : \tIntrusion detection\n");
-		printf("varThresh = \t%d\n", varThresh);
-	    printf("delta_w = \t%d\n", delta_w);
-	    printf("delta_h = \t%d\n", delta_h);
-	    printf("area_min = \t%d\n", area_min);
-	    printf("learningRate = \t%d\n", learningRate);
+		printf("varThresh = \t%d\n", md_cfg.varThresh);
+	    printf("delta_w = \t%d\n", md_cfg.delta_w);
+	    printf("delta_h = \t%d\n", md_cfg.delta_h);
+	    printf("area_min = \t%d\n", md_cfg.area_min);
+	    printf("learningRate = \t%d\n", md_cfg.learningRate);
 	    printf("hostname = \t%s\n", hostname);
 	    printf("port = \t%s\n", port);
 	    printf("*****************************************\n\n");
 	}
-	
-
-	if(op != NULL)
-	{
-		if(strcmp(op,"in")==0)
-		{
-			p1.x = 21;
-			p1.y = 28;
-			p2.x = 43;
-			p2.y = 34;
-			vertx[0] = 18;vertx[1] = 41;vertx[2] = 35;vertx[3] = 7;
-			verty[0] = 33;verty[1] = 38;verty[2] = 50;verty[3] = 41;
-		}
-		if(strcmp(op,"out")==0)
-		{
-			p1.x = 50;
-			p1.y = 24;
-			p2.x = 70;
-			p2.y = 38;
-			vertx[0] = 37;vertx[1] = 61;vertx[2] = 72;vertx[3] = 38;
-			verty[0] = 43;verty[1] = 42;verty[2] = 56;verty[3] = 57;
-		}
-	}     	
-
-	// line crossing
-	if(option == RUN_ALL || option == RUN_LC)
-	{
-	    direction_line_crossing(&p1, &p2);
-	    get_minmax_line(&p1, &p2, &pminLine, &pmaxLine);
-	}
+	int lr_const = md_cfg.learningRate;
 
 	/******************************* socket ************************************
 	*
@@ -204,13 +173,11 @@ int main(int argc, char *argv[])
 	//int msqid;	
 	key_t key;
 	system("touch msgq.txt");
-
 	if ((key = ftok("msgq.txt", 'B')) == -1)
 	{
 		perror("ftok");
 		exit(1);
 	}
-
 	if ((msqid = msgget(key, PERMS | IPC_CREAT)) == -1)
 	{
 		perror("msgget");
@@ -246,7 +213,7 @@ int main(int argc, char *argv[])
 
         if (number >= 256)
         {        	
-            if (motion_detect(grayImage, grayBackground, &listTrack, learningRate, varThresh, delta_w, delta_h, area_min) == 1)
+            if (motion_detect(grayImage, grayBackground, &listTrack, md_cfg) == 1)
 			{
 				delayEndMD = 0;
 				if (!eventFlagMD)
@@ -262,17 +229,17 @@ int main(int argc, char *argv[])
 				}
 				else
 				{
-					// line crossing *****************************************************
+					// line crossing *******************************************************
 					if(option == RUN_ALL || option == RUN_LC)
 					{
-						line_crossing(p1, p2, pminLine, pmaxLine, listTrack, direction);
-					} // ******************************************************************
+						line_crossing(lc_cfg, listTrack);
+					} // *******************************************************************
 					
 
 					// intrusion detection *************************************************
 					if(option == RUN_ALL || option == RUN_ID)
 					{					
-						if (intrusion(listTrack, nvert, vertx, verty) == 1)
+						if (intrusion_detection(its_cfg, listTrack) == 1)
 						{
 					        if (!intrusionDetectFlag)
 					        {
@@ -333,8 +300,8 @@ int main(int argc, char *argv[])
 			}
 
 
-            if (learningRate > 0) learningRate--;
-            else learningRate = 30;
+            if (md_cfg.learningRate > 0) md_cfg.learningRate--;
+            else md_cfg.learningRate = lr_const;
         }
         else create_background(grayImage, grayBackground);
 
