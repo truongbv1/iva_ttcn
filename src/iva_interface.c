@@ -88,8 +88,9 @@ int get_file_contents(const char *filename, char **outbuffer)
 // Just a utility function
 void print_json_object(struct json_object *jobj, const char *msg)
 {
-  printf("\n%s: \n", msg);
-  printf("---\n%s\n---\n", json_object_to_json_string_ext(jobj, JSON_C_TO_STRING_SPACED | JSON_C_TO_STRING_PRETTY));
+  printf("\n***************%s**************\n", msg);
+  printf("%s", json_object_to_json_string_ext(jobj, JSON_C_TO_STRING_SPACED | JSON_C_TO_STRING_PRETTY));
+  printf("\n********************************************************\n");
 }
 
 
@@ -102,17 +103,16 @@ int get_cfg_iva(line_crossing_iva* lc_cfg, intrusion_iva* its_cfg, char* filenam
   struct json_object *tmp_obj;
   get_file_contents(filename, &buffer);
   root_obj = json_tokener_parse(buffer);
-  print_json_object(root_obj, "root_obj");
 
   json_object_object_get_ex(root_obj, "data_iva", &data_iva_obj);
   json_object_object_get_ex(data_iva_obj, "rect_iva", &data_iva_obj);
-  print_json_object(data_iva_obj, "rect_iva");
 
   // line
   rect_iva_obj = json_object_array_get_idx(data_iva_obj, 0);  
   json_object_object_get_ex(rect_iva_obj, "resolution", &tmp_obj);
   json_object_object_get_ex(tmp_obj, "width", &tmp_obj);  
   lc_cfg->width = json_object_get_int(tmp_obj);
+  json_object_object_get_ex(rect_iva_obj, "resolution", &tmp_obj);
   json_object_object_get_ex(tmp_obj, "height", &tmp_obj);  
   lc_cfg->height = json_object_get_int(tmp_obj);
   json_object_object_get_ex(rect_iva_obj, "enable_lc", &tmp_obj);
@@ -129,13 +129,14 @@ int get_cfg_iva(line_crossing_iva* lc_cfg, intrusion_iva* its_cfg, char* filenam
   lc_cfg->endX = json_object_get_int(tmp_obj);
   json_object_object_get_ex(rect_iva_obj, "endY", &tmp_obj);
   lc_cfg->endY = json_object_get_int(tmp_obj);
-  print_json_object(rect_iva_obj, "0: line");
+  print_json_object(rect_iva_obj, "*** setup line crossing ***");
 
   // intrusion
   rect_iva_obj = json_object_array_get_idx(data_iva_obj, 1);  
   json_object_object_get_ex(rect_iva_obj, "resolution", &tmp_obj);
   json_object_object_get_ex(tmp_obj, "width", &tmp_obj);  
   its_cfg->width = json_object_get_int(tmp_obj);
+  json_object_object_get_ex(rect_iva_obj, "resolution", &tmp_obj);
   json_object_object_get_ex(tmp_obj, "height", &tmp_obj);  
   its_cfg->height = json_object_get_int(tmp_obj);
   json_object_object_get_ex(rect_iva_obj, "enable_its", &tmp_obj);
@@ -161,15 +162,31 @@ int get_cfg_iva(line_crossing_iva* lc_cfg, intrusion_iva* its_cfg, char* filenam
   json_object_object_get_ex(rect_iva_obj, "p_y4", &tmp_obj);
   its_cfg->vertY[3] = json_object_get_int(tmp_obj);
   its_cfg->nvert = 4;
-  print_json_object(rect_iva_obj, "1: intrusion");
+  print_json_object(rect_iva_obj, " setup intrusion detection ");
 
   json_object_put(tmp_obj);
   json_object_put(rect_iva_obj);
   json_object_put(data_iva_obj);
   json_object_put(root_obj);
   free(buffer);
-  
   return 0;
+}
+
+// check last modification of file
+int check_modification_file(const char *path, time_t* oldMTime)
+{
+    struct stat fileStat;
+    int err = stat(path, &fileStat);
+    if (err != 0)
+    {
+        perror(" [check_modification_file] stat");
+        exit(errno);
+    }
+    if(fileStat.st_mtime != *oldMTime) {
+      *oldMTime = fileStat.st_mtime;
+      return 1;
+    }
+    return 0;
 }
 
 // line crossing
@@ -189,9 +206,6 @@ void normalize_line_crossing(line_crossing_iva* lc_cfg, int widthResize, int hei
         (lc_cfg->startY > lc_cfg->endY))
     {
         // swap point_1 and point_2
-        //CvPoint temp = *p1;
-        //*p1 = *p2;
-        //*p2 = temp;
         int tempX = lc_cfg->startX;
         int tempY = lc_cfg->startY;
         lc_cfg->startX = lc_cfg->endX;
@@ -244,7 +258,6 @@ int setup_cfg(char* filename_json, int widthResize, int heightResize, line_cross
 
   // setup input-intrusion
   normalize_intrusion_detection(its_cfg, widthResize, heightResize);
-  
   return 0;
 }
 

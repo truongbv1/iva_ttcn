@@ -66,16 +66,17 @@ int main(int argc, char *argv[])
 
     int number = 0;
     int option = 0; // all or MD or LC or ID   
-    list *listTrack = NULL;  
+    list *listTrack = NULL;  // list rectangle-object
     char* filename_json = "iva.json";  
+    time_t oldMTime; // last modified
 
-    // motion detection 
+    // default for motion detection 
     motion_detection_iva md_cfg;
-    md_cfg.delta_w = 2;
-    md_cfg.delta_h = 3;
+    md_cfg.delta_w = 1;
+    md_cfg.delta_h = 2;
     md_cfg.area_min = 2;
     md_cfg.varThresh = 20;
-	md_cfg.learningRate = 15;	
+	md_cfg.learningRate = 30;	
 	int delayEventMD = 0;
 	int eventFlagMD = 0;
 	int delayEndMD = 0;
@@ -89,16 +90,9 @@ int main(int argc, char *argv[])
 	int intrusionDetectFlag = 0;
     int delayEventIntrusion = 0;
 
-	// setup
-	setup_cfg(filename_json, _WIDTH, _HEIGHT, &lc_cfg, &its_cfg);
-	if(lc_cfg.enable_lc == 0 && its_cfg.enable_its == 0) option = RUN_MD;
-	if(lc_cfg.enable_lc == 1 && its_cfg.enable_its == 0) option = RUN_LC;
-	if(lc_cfg.enable_lc == 0 && its_cfg.enable_its == 1) option = RUN_ID;    
-
 	if(argc == 2 && (strcmp(argv[1],"-help") == 0 || strcmp(argv[1],"?") == 0))
 	{
 		printf("\n\n**************************  help  **************************\n");
-		printf("%s: \tdefault is motion detection, line crossing and intrusion detection\n\n", argv[0]);
 		printf("[options]\n"); 
 		printf("-m : \tmotion detection\n"); 
 		printf("-l : \tmotion detection and line crossing\n");
@@ -111,56 +105,64 @@ int main(int argc, char *argv[])
     	printf("--learningRate : \tlearning rate for update background (default = %d)\n", md_cfg.learningRate);
     	printf("--hostname :\t static ip of server (default = %s)\n", hostname);
     	printf("--port : \tport connect to server (default = %s)\n", port);
-    	printf("--camera : \tin (indoor) or out (outdoor)\n");
-    	printf("usage:\n%s --parameter value --parameter value ...vv..\n", argv[0]);
-    	printf("%s [options] --parameter value --parameter value ...vv..\n", argv[0]);
+    	//printf("--camera : \tin (indoor) or out (outdoor)\n");
+    	printf("usage:\n%s (default)\n", argv[0]);
+    	printf("%s [options] [[parameters] value] ...vv..\n", argv[0]);
     	printf("\n**************************  ****  **************************\n\n");
     	return 0;
 	}
-	else 
-	{
-		int i = 1;
-		for(i =1; i< argc;i++){
-			if(strcmp(argv[i],"-m")==0){option = RUN_MD; continue;}
-			if(strcmp(argv[i],"-l")==0){option = RUN_LC; continue;}
-			if(strcmp(argv[i],"-i")==0){option = RUN_ID; continue;}
+	
+	// setup
+	check_modification_file(filename_json, &oldMTime);
+	setup_cfg(filename_json, _WIDTH, _HEIGHT, &lc_cfg, &its_cfg);	
+	if(lc_cfg.enable_lc == 0 && its_cfg.enable_its == 0) option = RUN_MD;
+	if(lc_cfg.enable_lc == 1 && its_cfg.enable_its == 0) option = RUN_LC;
+	if(lc_cfg.enable_lc == 0 && its_cfg.enable_its == 1) option = RUN_ID; 
 
-			if(strcmp(argv[i],"--varThresh")==0){md_cfg.varThresh = atoi(argv[++i]); continue;}
-			if(strcmp(argv[i],"--delta_w")==0)	{md_cfg.delta_w = atoi(argv[++i]); continue;}
-			if(strcmp(argv[i],"--delta_h")==0)	{md_cfg.delta_h = atoi(argv[++i]); continue;}
-			if(strcmp(argv[i],"--area_min")==0)	{md_cfg.area_min = atoi(argv[++i]); continue;}
-			if(strcmp(argv[i],"--learningRate")==0)	{md_cfg.learningRate = atoi(argv[++i]); continue;}
-			if(strcmp(argv[i],"--hostname")==0)	{hostname = argv[++i]; continue;}
-			if(strcmp(argv[i],"--port")==0)		{port = argv[++i]; continue;}
-			//if(strcmp(argv[i],"--camera")==0)	{op = argv[++i]; continue;}
-			printf("unknown? argument %s\n", argv[i]);
-			return 0;			
-		}
-		
-		printf("\n\n**************** setup ******************\n");
-		printf("use -help or ?\n");
-		if(option == RUN_ALL) printf("option : \tDefault (MD+LC+ID)\n");
-		if(option == RUN_MD) printf("option : \tMotion detection\n");
-		if(option == RUN_LC) printf("option : \tLine crossing\n");
-		if(option == RUN_ID) printf("option : \tIntrusion detection\n");
-		printf("varThresh = \t%d\n", md_cfg.varThresh);
-	    printf("delta_w = \t%d\n", md_cfg.delta_w);
-	    printf("delta_h = \t%d\n", md_cfg.delta_h);
-	    printf("area_min = \t%d\n", md_cfg.area_min);
-	    printf("learningRate = \t%d\n", md_cfg.learningRate);
-	    printf("hostname = \t%s\n", hostname);
-	    printf("port = \t%s\n", port);
-	    printf("*****************************************\n\n");
+
+	int i = 1;
+	for(i =1; i< argc;i++){
+		if(strcmp(argv[i],"-m")==0){option = RUN_MD; continue;}
+		if(strcmp(argv[i],"-l")==0){option = RUN_LC; continue;}
+		if(strcmp(argv[i],"-i")==0){option = RUN_ID; continue;}
+
+		if(strcmp(argv[i],"--varThresh")==0){md_cfg.varThresh = atoi(argv[++i]); continue;}
+		if(strcmp(argv[i],"--delta_w")==0)	{md_cfg.delta_w = atoi(argv[++i]); continue;}
+		if(strcmp(argv[i],"--delta_h")==0)	{md_cfg.delta_h = atoi(argv[++i]); continue;}
+		if(strcmp(argv[i],"--area_min")==0)	{md_cfg.area_min = atoi(argv[++i]); continue;}
+		if(strcmp(argv[i],"--learningRate")==0)	{md_cfg.learningRate = atoi(argv[++i]); continue;}
+		if(strcmp(argv[i],"--hostname")==0)	{hostname = argv[++i]; continue;}
+		if(strcmp(argv[i],"--port")==0)		{port = argv[++i]; continue;}
+		//if(strcmp(argv[i],"--camera")==0)	{op = argv[++i]; continue;}
+		printf("unknown? argument %s\n", argv[i]);
+		return 0;			
 	}
+	
+	printf("\n\n**************** setup motion detection ****************\n");
+	printf("use -help or ?\n");
+	if(option == RUN_ALL) printf("option : \tDefault (MD+LC+ID)\n");
+	if(option == RUN_MD) printf("option : \tMotion detection\n");
+	if(option == RUN_LC) printf("option : \tLine crossing\n");
+	if(option == RUN_ID) printf("option : \tIntrusion detection\n");
+	printf("varThresh = \t%d\n", md_cfg.varThresh);
+    printf("delta_w = \t%d\n", md_cfg.delta_w);
+    printf("delta_h = \t%d\n", md_cfg.delta_h);
+    printf("area_min = \t%d\n", md_cfg.area_min);
+    printf("learningRate = \t%d\n", md_cfg.learningRate);
+    printf("hostname = \t%s\n", hostname);
+    printf("port = \t\t%s\n", port);
+    printf("********************************************************\n\n");
+	
 	int lr_const = md_cfg.learningRate;
 
 	/******************************* socket ************************************
 	*
 	****************************************************************************/
-
+	int enable_sk = 0;
     if (hostname != NULL && port != NULL)
     {
 	    // thread	    
+	    enable_sk = 1;
 	    pthread_t thread_socket;	    
 	    pthread_create(&thread_socket, NULL, &send_server, NULL); 	    
 	    int err = pthread_detach(thread_socket);
@@ -270,7 +272,7 @@ int main(int argc, char *argv[])
 					} // ********************************************************************
 
 				    // socket: send server *****************
-				    if(argc > 5) 
+				    if(enable_sk) 
 				    {
 			    		list *current = listTrack;
 					    while (current != NULL)
@@ -299,9 +301,24 @@ int main(int argc, char *argv[])
 				}
 			}
 
-
             if (md_cfg.learningRate > 0) md_cfg.learningRate--;
-            else md_cfg.learningRate = lr_const;
+            else 
+            {
+            	md_cfg.learningRate = lr_const;
+
+            	// check last modification of cfg-file , 
+            	// update cfg when update background (default is 30 frame)
+	            if(check_modification_file(filename_json, &oldMTime))
+	            {	
+	            	printf("%s file was modified\n", filename_json);
+	            	setup_cfg(filename_json, _WIDTH, _HEIGHT, &lc_cfg, &its_cfg);	
+					if(lc_cfg.enable_lc == 0 && its_cfg.enable_its == 0) option = RUN_MD;
+					if(lc_cfg.enable_lc == 1 && its_cfg.enable_its == 0) option = RUN_LC;
+					if(lc_cfg.enable_lc == 0 && its_cfg.enable_its == 1) option = RUN_ID;
+	            }
+            }
+
+            
         }
         else create_background(grayImage, grayBackground);
 

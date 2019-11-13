@@ -17,7 +17,8 @@
 #include <json-c/json.h>
 
 //check modification : file
-//#include <sys/stat.h> 
+#include <sys/time.h>
+#include <sys/stat.h>
 
 
 typedef struct list
@@ -91,6 +92,7 @@ void connect_nearby_rects(list **Rects, int delta_w, int delta_h);
 int get_file_contents(const char *filename, char **outbuffer);
 void print_json_object(struct json_object *jobj, const char *msg);
 int get_cfg_iva(line_crossing_iva* lc_cfg, intrusion_iva* its_cfg, char* filename);
+int check_modification_file(const char *path, time_t* oldMTime);
 int setup_cfg(char* filename_json, int widthResize, int heightResize, line_crossing_iva* lc_cfg, intrusion_iva* its_cfg);
 
 

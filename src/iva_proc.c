@@ -492,21 +492,6 @@ int object_tracking(list *rects, list **listTrack)
     return 0;
 }
 
-//#include <sys/stat.h>
-// check last modification of file
-/*int check_modification_file(const char *path, time_t oldMTime)
-{
-    struct stat fileStat;
-    int err = stat(path, &fileStat);
-    if (err != 0)
-    {
-        perror(" [file_is_modified] stat");
-        exit(errno);
-    }
-    return fileStat.st_mtime > oldMTime;
-}*/
-
-
 void line_crossing(line_crossing_iva lc_cfg, list *listTrack)
 {
     list *track = listTrack;
