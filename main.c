@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
     int number = 0;
     int option = 0; // all or MD or LC or ID   
     list *listTrack = NULL;  // list rectangle-object
-    char* filename_json = "iva.json";  
+    char* filename_json = "/usr/conf/iva.json";  
     time_t oldMTime; // last modified
 
     // default for motion detection 
