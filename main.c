@@ -173,13 +173,13 @@ int main(int argc, char *argv[])
 	*
 	****************************************************************************/
 	//int msqid;	
-	key_t key;
-	system("touch msgq.txt");
-	if ((key = ftok("msgq.txt", 'B')) == -1)
-	{
-		perror("ftok");
-		exit(1);
-	}
+	key_t key = 1236; // default
+	// system("touch msgq.txt");
+	// if ((key = ftok("msgq.txt", 'B')) == -1)
+	// {
+	// 	perror("ftok");
+	// 	exit(1);
+	// }
 	if ((msqid = msgget(key, PERMS | IPC_CREAT)) == -1)
 	{
 		perror("msgget");
@@ -332,7 +332,7 @@ int main(int argc, char *argv[])
     }
 
     msgq_send(msqid, "end");// closed retrieving message from queue
-    system("rm msgq.txt"); 	// remove msgq.txt (key)
+    //system("rm msgq.txt"); 	// remove msgq.txt (key)
     rm_msgq(msqid);			// remove message queue
     avformat_close_input(&infoContext);
     cvReleaseImage(&img);
