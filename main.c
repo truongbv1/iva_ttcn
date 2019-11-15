@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
         av_free_packet(&inPacket);
     }
 
-    msgq_send(msqid, "end");// closed retrieving message from queue
+    //msgq_send(msqid, "end");// closed retrieving message from queue
     //system("rm msgq.txt"); 	// remove msgq.txt (key)
     rm_msgq(msqid);			// remove message queue
     avformat_close_input(&infoContext);
