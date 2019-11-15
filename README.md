@@ -20,5 +20,5 @@
 --port : port connect to server (default = (null))  
 
 usage:  
-./iva (default)
+./iva (default)  
 ./iva [options] [[parameters] value] ...vv..  
