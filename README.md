@@ -1,5 +1,5 @@
 # iva
-1. motion ditection
+1. motion detection
 2. line crossing
 3. intrusion detection
 
