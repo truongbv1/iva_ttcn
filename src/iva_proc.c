@@ -331,6 +331,15 @@ int motion_detect(IplImage *grayImage, IplImage *grayBackground, list **listTrac
     return 0;
 }
 
+int motion_detect_region(motion_detection_iva md_cfg, list *listTrack)
+{
+    list *track = listTrack;
+    for (track = listTrack; track != NULL; track = track->next)
+    {
+        if(overlap_box(track->rect, md_cfg.region_detection) > 0.2) return 1;
+    }
+    return 0;
+}
 int find_object_direction(CvPoint p1, CvPoint p2)
 {
     int w = p2.x - p1.x;
@@ -516,7 +525,7 @@ void line_crossing(line_crossing_iva lc_cfg, list *listTrack)
                         if(track->crossLevel == 0)
                         {
                             track->crossLevel = 1;
-                            printf("\n-----------> Line crossing A-> B\n");
+                            //printf("\n-----------> Line crossing A-> B\n");
                             msgq_send(msqid, "A->B");                            
                         }                       
                         
@@ -531,7 +540,7 @@ void line_crossing(line_crossing_iva lc_cfg, list *listTrack)
                             if(track->crossLevel == 0)
                             {
                                 track->crossLevel = -1;                    
-                                printf("-----------> Line crossing      B-> A\n");
+                                //printf("-----------> Line crossing      B-> A\n");
                                 msgq_send(msqid, "B->A");                                      
                             } 
                         }

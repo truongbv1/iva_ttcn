@@ -81,7 +81,10 @@ int main(int argc, char *argv[])
 	int eventFlagMD = 0;
 	int delayEndMD = 0;
 	int endFlagMD = 0;
-
+	// motion detection region
+	int delayEventMDR = 0;
+	int eventFlagMDR = 0;
+	int delayEndMDR = 0;
 	// line crossing
 	line_crossing_iva lc_cfg;
 
@@ -217,6 +220,36 @@ int main(int argc, char *argv[])
         {        	
             if (motion_detect(grayImage, grayBackground, &listTrack, md_cfg) == 1)
 			{
+				delayEndMDR = 0;
+				if (motion_detect_region(md_cfg, listTrack))
+				{					
+					if (!eventFlagMDR)
+					{
+						if (delayEventMDR == DELAY_SEND)
+						{
+							eventFlagMDR = 1;
+							//endFlagMDR = 1;
+							printf("-------------> Motion detected region <------------\n");
+							msgq_send(msqid, "MDR"); // send "MD" to message queue
+						}
+						else delayEndMDR++;
+					}
+				}
+				else
+				{					 
+					if (eventFlagMDR)
+					{
+						delayEndMDR--;
+						if(delayEndMDR == -DELAY_END)
+						{				        			
+							eventFlagMDR = 0;
+							delayEndMDR = 0;
+							//printf("---------------> End MD Region <------------\n");
+						}
+					}
+					
+				}
+
 				delayEndMD = 0;
 				if (!eventFlagMD)
 				{
@@ -224,8 +257,8 @@ int main(int argc, char *argv[])
 					{
 						eventFlagMD = 1;
 						endFlagMD = 1;
-						printf("-------------> Motion detected <------------\n");
-						msgq_send(msqid, "MD"); // send "MD" to message queue
+						//printf("-------------> Motion detected <------------\n");
+						//msgq_send(msqid, "MD"); // send "MD" to message queue
 					}
 					else delayEventMD++;
 				}
@@ -249,8 +282,8 @@ int main(int argc, char *argv[])
 					            {					                
 					                intrusionDetectFlag = 1;
 					                delayEventIntrusion = 0;
-					                printf("------------> intrusion detected <----------\n");
-					                msgq_send(msqid, "ID"); // send "ID" to message queue
+					                //printf("------------> intrusion detected <----------\n");
+									msgq_send(msqid, "ID"); // send "ID" to message queue
 					            }
 					            else delayEventIntrusion++;
 					        }
@@ -264,7 +297,7 @@ int main(int argc, char *argv[])
 					    		{				        			
 				        			intrusionDetectFlag = 0;
 				        			delayEventIntrusion = 0;
-				        			printf("---------------> End intrusion <------------\n");
+				        			//printf("---------------> End intrusion <------------\n");
 				        		}
 				        	}
 					        
@@ -294,7 +327,7 @@ int main(int argc, char *argv[])
 					{
 						eventFlagMD = 0;
 						endFlagMD = 0;
-						printf("---------------> End motion <---------------\n");
+						//printf("---------------> End motion <---------------\n");
 						msgq_send(msqid, "EndMD"); // send "EndMD" to message queue
 					}		
 					else delayEndMD++;
