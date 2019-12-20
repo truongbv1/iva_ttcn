@@ -51,6 +51,7 @@ void push(list **Rects, CvRect rect)
         current->next->angle = -1;
     }
 }
+
 int get_size(list *Rects)
 {
     int i = 0;
@@ -520,7 +521,7 @@ void line_crossing(line_crossing_iva lc_cfg, list *listTrack)
             {
                 if (track->status == -1 && tmp == 1)
                 {
-                    if (lc_cfg.direction >= 0)
+                    if (lc_cfg.direction == 0 || lc_cfg.direction == 1)
                     {
                         if(track->crossLevel == 0)
                         {
@@ -535,7 +536,7 @@ void line_crossing(line_crossing_iva lc_cfg, list *listTrack)
                 {
                     if (track->status == 1 && tmp == -1)
                     {
-                        if (lc_cfg.direction <= 0)
+                        if (lc_cfg.direction == 0 || lc_cfg.direction == 2)
                         {                            
                             if(track->crossLevel == 0)
                             {

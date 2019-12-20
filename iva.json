@@ -1,0 +1,47 @@
+{
+	"command": "setIvaRect",
+	"data_iva": {
+			"rect_iva": [{
+					"resolution": {
+						"width": 1280,
+						"height": 720
+					},
+					"enable_md": true,
+					"enable_mdr": true,
+					"p_x": 516,
+					"p_y": 293,
+					"width": 275,
+					"height": 232
+				},							
+				{
+					"resolution": {
+						"width": 1280,
+						"height": 720
+					},
+					"enable_lc": true,
+					"sensitivity": 0,
+					"direction": 0,
+					"startX": 412,
+					"startY": 340,
+					"endX": 682,
+					"endY": 408
+				},
+				{
+					"resolution": {
+						"width": 1280,
+						"height": 720
+					},
+					"enable_its": true,
+					"sensitivity": 0,
+					"direction": 1,
+					"p_x1": 372,
+					"p_y1": 390,
+					"p_x2": 652,
+					"p_y2": 459,
+					"p_x3": 577,
+					"p_y3": 603,
+					"p_x4": 244,
+					"p_y4": 499
+			}]
+	}
+}

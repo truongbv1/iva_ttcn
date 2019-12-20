@@ -38,11 +38,16 @@ extern list *rects_sk; //list for socket
 
 typedef struct motion_detection_iva
 {
-    int delta_w;
-    int delta_h;
-    int area_min;
-    int varThresh;
+  int width;
+  int height;
+  bool enable_md;
+  bool enable_mdr;
+  int delta_w;
+  int delta_h;
+  int area_min;
+  int varThresh;
 	int learningRate;
+  CvRect region_detection;
 } motion_detection_iva;
 
 
@@ -91,9 +96,9 @@ void connect_nearby_rects(list **Rects, int delta_w, int delta_h);
 *********************************************************/
 int get_file_contents(const char *filename, char **outbuffer);
 void print_json_object(struct json_object *jobj, const char *msg);
-int get_cfg_iva(line_crossing_iva* lc_cfg, intrusion_iva* its_cfg, char* filename);
+int get_cfg_iva(motion_detection_iva* md_cfg, line_crossing_iva* lc_cfg, intrusion_iva* its_cfg, char* filename);
 int check_modification_file(const char *path, time_t* oldMTime);
-int setup_cfg(char* filename_json, int widthResize, int heightResize, line_crossing_iva* lc_cfg, intrusion_iva* its_cfg);
+int setup_cfg(char* filename_json, int widthResize, int heightResize, motion_detection_iva* md_cfg, line_crossing_iva* lc_cfg, intrusion_iva* its_cfg);
 
 
 /********************* motion detection ******************
@@ -104,6 +109,8 @@ void resize_image(IplImage *img, IplImage *img_resized);
 void create_background(IplImage *currentFrame, IplImage *background);
 void find_foreground(IplImage *grayImage, IplImage *grayBackground, IplImage *foreground, int varThresh, int learningRate);
 int motion_detect(IplImage *grayImage, IplImage *grayBackground, list **listTrack, motion_detection_iva md_cfg);
+int motion_detect_region(motion_detection_iva md_cfg, list *listTrack);
+void normalize_motion_detection_region(motion_detection_iva* md_cfg, int widthResize, int heightResize);
 
 
 /********************** object tracking ******************

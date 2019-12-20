@@ -44,13 +44,16 @@ static void Termination(int sign)
     g_exit = 1;
 }
 
-#define DELAY_SEND 3
-#define DELAY_END 20
+#define DELAY_SEND 4
+#define DELAY_END 100
+#define DELAY_END_MDR 80
 
-#define RUN_ALL 0
-#define RUN_MD 1
-#define RUN_LC 2
-#define RUN_ID 3
+#define RUN_ALL 1
+#define RUN_MD 2
+#define RUN_MR 3
+#define RUN_LC 4
+#define RUN_ID 5
+
 
 int main(int argc, char *argv[])
 {   
@@ -64,11 +67,12 @@ int main(int argc, char *argv[])
     IplImage *grayImage = cvCreateImage(cvSize(_WIDTH, _HEIGHT), 8, 1);
     IplImage *grayBackground = cvCreateImage(cvSize(_WIDTH, _HEIGHT), 8, 1);
 
-    int number = 0;
-    int option = 0; // all or MD or LC or ID   
-    list *listTrack = NULL;  // list rectangle-object
+    int frameNumber = 0;
+    int option = 0; 			// all or MD or LC or ID   
+    list *listTrack = NULL;  	// list rectangle-object
     char* filename_json = "/usr/conf/iva.json";  
-    time_t oldMTime; // last modified
+    time_t oldMTime; 			// last modified of file-iva.json
+    int countCheckFile = 0;
 
     // default for motion detection 
     motion_detection_iva md_cfg;
@@ -85,9 +89,9 @@ int main(int argc, char *argv[])
 	int delayEventMDR = 0;
 	int eventFlagMDR = 0;
 	int delayEndMDR = 0;
+	int endFlagMDR = 0;	
 	// line crossing
 	line_crossing_iva lc_cfg;
-
 	// intrusion detection    
 	intrusion_iva its_cfg;
 	int intrusionDetectFlag = 0;
@@ -98,8 +102,10 @@ int main(int argc, char *argv[])
 		printf("\n\n**************************  help  **************************\n");
 		printf("[options]\n"); 
 		printf("-m : \tmotion detection\n"); 
-		printf("-l : \tmotion detection and line crossing\n");
-		printf("-i : \tmotion detection and intrusion detection\n");
+		printf("-r : \tmotion region detection\n"); 
+		printf("-l : \tline crossing\n");
+		printf("-i : \tintrusion detection\n");
+		printf("-a : \tall: MD, MDR, LC, ID\n");
 		printf("[parameters]\n"); 
     	printf("--varThresh : \tthreshold value of foreground and background (default = %d)\n", md_cfg.varThresh);
     	printf("--delta_w : \tdelta-width for connect nearby rectangle (default = %d)\n", md_cfg.delta_w);
@@ -109,7 +115,7 @@ int main(int argc, char *argv[])
     	printf("--hostname :\t static ip of server (default = %s)\n", hostname);
     	printf("--port : \tport connect to server (default = %s)\n", port);
     	//printf("--camera : \tin (indoor) or out (outdoor)\n");
-    	printf("usage:\n%s (default)\n", argv[0]);
+    	printf("usage:\n%s (default of file-cfg)\n", argv[0]);
     	printf("%s [options] [[parameters] value] ...vv..\n", argv[0]);
     	printf("\n**************************  ****  **************************\n\n");
     	return 0;
@@ -117,17 +123,15 @@ int main(int argc, char *argv[])
 	
 	// setup
 	check_modification_file(filename_json, &oldMTime);
-	setup_cfg(filename_json, _WIDTH, _HEIGHT, &lc_cfg, &its_cfg);	
-	if(lc_cfg.enable_lc == 0 && its_cfg.enable_its == 0) option = RUN_MD;
-	if(lc_cfg.enable_lc == 1 && its_cfg.enable_its == 0) option = RUN_LC;
-	if(lc_cfg.enable_lc == 0 && its_cfg.enable_its == 1) option = RUN_ID; 
-
-
+	setup_cfg(filename_json, _WIDTH, _HEIGHT, &md_cfg, &lc_cfg, &its_cfg);	
+	
 	int i = 1;
 	for(i =1; i< argc;i++){
 		if(strcmp(argv[i],"-m")==0){option = RUN_MD; continue;}
+		if(strcmp(argv[i],"-r")==0){option = RUN_MR; continue;}
 		if(strcmp(argv[i],"-l")==0){option = RUN_LC; continue;}
 		if(strcmp(argv[i],"-i")==0){option = RUN_ID; continue;}
+		if(strcmp(argv[i],"-a")==0){option = RUN_ALL; continue;}
 
 		if(strcmp(argv[i],"--varThresh")==0){md_cfg.varThresh = atoi(argv[++i]); continue;}
 		if(strcmp(argv[i],"--delta_w")==0)	{md_cfg.delta_w = atoi(argv[++i]); continue;}
@@ -140,11 +144,21 @@ int main(int argc, char *argv[])
 		printf("unknown? argument %s\n", argv[i]);
 		return 0;			
 	}
-	
+
+	switch(option)
+	{
+		case RUN_MD: md_cfg.enable_mdr = 0; lc_cfg.enable_lc = 0; its_cfg.enable_its = 0; break;
+		case RUN_MR: md_cfg.enable_mdr = 1; lc_cfg.enable_lc = 0; its_cfg.enable_its = 0; break;
+		case RUN_LC: md_cfg.enable_mdr = 0; lc_cfg.enable_lc = 1; its_cfg.enable_its = 0; break;
+		case RUN_ID: md_cfg.enable_mdr = 0; lc_cfg.enable_lc = 0; its_cfg.enable_its = 1; break;
+		case RUN_ALL: md_cfg.enable_mdr= 1; lc_cfg.enable_lc = 1; its_cfg.enable_its = 1; break;
+	}
+
 	printf("\n\n**************** setup motion detection ****************\n");
 	printf("use -help or ?\n");
-	if(option == RUN_ALL) printf("option : \tDefault (MD+LC+ID)\n");
+	if(option == RUN_ALL) printf("option : \tDefault (MDR + LC + ID)\n");
 	if(option == RUN_MD) printf("option : \tMotion detection\n");
+	if(option == RUN_MR) printf("option : \tMotion region detection\n");
 	if(option == RUN_LC) printf("option : \tLine crossing\n");
 	if(option == RUN_ID) printf("option : \tIntrusion detection\n");
 	printf("varThresh = \t%d\n", md_cfg.varThresh);
@@ -175,7 +189,6 @@ int main(int argc, char *argv[])
 	/***************************** message queue *******************************
 	*
 	****************************************************************************/
-	//int msqid;	
 	key_t key = 1236; // default
 	// system("touch msgq.txt");
 	// if ((key = ftok("msgq.txt", 'B')) == -1)
@@ -196,10 +209,10 @@ int main(int argc, char *argv[])
 	* get data stream from dev/video53 and save to buffer
 	****************************************************************************/
     int ret = 0;
-    AVFormatContext *infoContext = NULL; //avformat.h
+    AVFormatContext *infoContext = NULL; 	//avformat.h
     AVPacket inPacket;
     signal(SIGINT, Termination);
-    signal(SIGTERM, Termination); //avcodec.h
+    signal(SIGTERM, Termination); 			//avcodec.h
     ret = data_stream(&infoContext, "/dev/video53");
 
     /*************************** processing ************************************/    
@@ -216,40 +229,47 @@ int main(int argc, char *argv[])
         img->imageData = (char *)inPacket.data;
         resize_image(img, grayImage);
 
-        if (number >= 256)
+        if (frameNumber >= 256)
         {        	
             if (motion_detect(grayImage, grayBackground, &listTrack, md_cfg) == 1)
 			{
-				delayEndMDR = 0;
-				if (motion_detect_region(md_cfg, listTrack))
-				{					
-					if (!eventFlagMDR)
-					{
-						if (delayEventMDR == DELAY_SEND)
+				// MD Region  
+				if(md_cfg.enable_mdr)
+				{				
+					if (motion_detect_region(md_cfg, listTrack))
+					{			
+						delayEndMDR = 0;
+						if (!eventFlagMDR)
 						{
-							eventFlagMDR = 1;
-							//endFlagMDR = 1;
-							printf("-------------> Motion detected region <------------\n");
-							msgq_send(msqid, "MDR"); // send "MD" to message queue
+							if (delayEventMDR == DELAY_SEND)
+							{
+								eventFlagMDR = 1;
+								endFlagMDR = 1;															
+								//printf("-------------> Motion detected region <------------\n");
+								msgq_send(msqid, "MDR"); // send "MD" to message queue							
+							}
+							else delayEventMDR++;
 						}
-						else delayEndMDR++;
-					}
-				}
-				else
-				{					 
-					if (eventFlagMDR)
+					}					
+					else
 					{
-						delayEndMDR--;
-						if(delayEndMDR == -DELAY_END)
-						{				        			
-							eventFlagMDR = 0;
-							delayEndMDR = 0;
-							//printf("---------------> End MD Region <------------\n");
+						delayEventMDR = 0;
+						if (endFlagMDR)
+						{	
+							if (delayEndMDR == DELAY_END_MDR)
+							{
+								eventFlagMDR = 0;
+								endFlagMDR = 0;
+								//printf("---------------> End motion region <---------------\n");
+								msgq_send(msqid, "EndMDR"); // send "EndMD" to message queue
+							}		
+							else delayEndMDR++;
 						}
 					}
-					
 				}
 
+
+				//  MD - LC, ID
 				delayEndMD = 0;
 				if (!eventFlagMD)
 				{
@@ -257,22 +277,25 @@ int main(int argc, char *argv[])
 					{
 						eventFlagMD = 1;
 						endFlagMD = 1;
-						//printf("-------------> Motion detected <------------\n");
-						//msgq_send(msqid, "MD"); // send "MD" to message queue
+						if(md_cfg.enable_md)
+						{							
+							//printf("-------------> Motion detected <------------\n");
+							msgq_send(msqid, "MD"); // send "MD" to message queue
+						}
 					}
 					else delayEventMD++;
 				}
 				else
 				{
 					// line crossing *******************************************************
-					if(option == RUN_ALL || option == RUN_LC)
+					if(lc_cfg.enable_lc)
 					{
 						line_crossing(lc_cfg, listTrack);
 					} // *******************************************************************
 					
 
 					// intrusion detection *************************************************
-					if(option == RUN_ALL || option == RUN_ID)
+					if(its_cfg.enable_its)
 					{					
 						if (intrusion_detection(its_cfg, listTrack) == 1)
 						{
@@ -293,7 +316,7 @@ int main(int argc, char *argv[])
 					        if (intrusionDetectFlag)
 				        	{
 				        		delayEventIntrusion--;
-					    		if(delayEventIntrusion == -5)
+					    		if(delayEventIntrusion == -30)
 					    		{				        			
 				        			intrusionDetectFlag = 0;
 				        			delayEventIntrusion = 0;
@@ -303,19 +326,25 @@ int main(int argc, char *argv[])
 					        
 					    }
 					} // ********************************************************************
+					
 
 				    // socket: send server *****************
 				    if(enable_sk) 
 				    {
-			    		list *current = listTrack;
-					    while (current != NULL)
-					    {
-					        push(&rects_sk, current->rect);
-					        current = current->next;
-					    }			    	
-				    	socket_flag = 0;				    	
-				    }
-				    // *************************************
+				    	if(!socket_flag)
+				    	{					    		
+				    		int n_sk = get_size(listTrack);				    		
+				    		list *rs = listTrack;			    		
+						    while (n_sk > 0)
+						    {
+						        push(&rects_sk, rs->rect);
+						        rs = rs->next;
+						        n_sk--;
+						    }						 
+						    socket_flag = 1;					    
+				    	}				    	
+				    }// ************************************
+
 				}
 			}
 			else
@@ -335,30 +364,36 @@ int main(int argc, char *argv[])
 			}
 
             if (md_cfg.learningRate > 0) md_cfg.learningRate--;
-            else 
-            {
-            	md_cfg.learningRate = lr_const;
-
-            	// check last modification of cfg-file , 
-            	// update cfg when update background (default is 30 frame)
-	            if(check_modification_file(filename_json, &oldMTime))
-	            {	
-	            	printf("%s file was modified\n", filename_json);
-	            	setup_cfg(filename_json, _WIDTH, _HEIGHT, &lc_cfg, &its_cfg);	
-					if(lc_cfg.enable_lc == 0 && its_cfg.enable_its == 0) option = RUN_MD;
-					if(lc_cfg.enable_lc == 1 && its_cfg.enable_its == 0) option = RUN_LC;
-					if(lc_cfg.enable_lc == 0 && its_cfg.enable_its == 1) option = RUN_ID;
-	            }
-            }
-
+            else md_cfg.learningRate = lr_const;
             
         }
         else create_background(grayImage, grayBackground);
 
-        if (number < 256)
+        if(countCheckFile >= 2000)
         {
-            if (number == 255) printf("-------------->done!\ndetection:\n");
-            number++;
+        	// check last modification of cfg-file , 
+        	// update cfg when update background (default is 30 frame)
+            if(check_modification_file(filename_json, &oldMTime))
+            {	
+            	printf("%s file was modified\n", filename_json);
+            	setup_cfg(filename_json, _WIDTH, _HEIGHT, &md_cfg, &lc_cfg, &its_cfg);	
+				switch(option)
+				{
+					case RUN_MD: md_cfg.enable_mdr = 0; lc_cfg.enable_lc = 0; its_cfg.enable_its = 0; break;
+					case RUN_MR: md_cfg.enable_mdr = 1; lc_cfg.enable_lc = 0; its_cfg.enable_its = 0; break;
+					case RUN_LC: md_cfg.enable_mdr = 0; lc_cfg.enable_lc = 1; its_cfg.enable_its = 0; break;
+					case RUN_ID: md_cfg.enable_mdr = 0; lc_cfg.enable_lc = 0; its_cfg.enable_its = 1; break;
+					case RUN_ALL: md_cfg.enable_mdr= 1; lc_cfg.enable_lc = 1; its_cfg.enable_its = 1; break;
+				}
+            }
+            countCheckFile = 0;
+        }
+        else countCheckFile++;
+
+        if (frameNumber < 256)
+        {
+            if (frameNumber == 255) printf("-------------->done!\ndetection:\n");
+            frameNumber++;
         }
 
         av_free_packet(&inPacket);

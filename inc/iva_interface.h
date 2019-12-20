@@ -19,7 +19,7 @@
 #define PERMS 0644
 struct my_msgbuf {
    long mtype;
-   char mtext[200];
+   char mtext[50];
 };
 
 extern int msqid;
