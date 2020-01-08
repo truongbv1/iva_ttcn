@@ -7,19 +7,17 @@
 						"height": 720
 					},
 					"enable_md": true,
-					"enable_mdr": true,
-					"p_x": 516,
-					"p_y": 293,
-					"width": 275,
-					"height": 232
+					"startX": 516,
+					"startY": 293,
+					"endX": 275,
+					"endY": 232
 				},							
 				{
 					"resolution": {
 						"width": 1280,
 						"height": 720
 					},
-					"enable_lc": true,
-					"sensitivity": 0,
+					"enable_lc": true,					
 					"direction": 0,
 					"startX": 412,
 					"startY": 340,
@@ -31,8 +29,7 @@
 						"width": 1280,
 						"height": 720
 					},
-					"enable_its": true,
-					"sensitivity": 0,
+					"enable_its": true,					
 					"direction": 1,
 					"p_x1": 372,
 					"p_y1": 390,

@@ -30,18 +30,17 @@ usage:
 
 1. Motion detection  
 "resolution": 	width x height of Web GUI  
-"enable_md": 	true/false - alarm for motion detection with raw-frame (1280x720, ..)  
-"enable_mdr": 	true/false  - alarm for motion detection with region in frame (123x456, 456x321 ..)  
-"p_x": 			start point x for region  
-"p_y": 			start point y for region    
-"width": 		width of region  
-"height": 		height of region  
+"enable_md": 	true/false  - alarm for motion detection with region in frame (123x456, 456x321 ..)  
+"startX": 		start point x for region  
+"startY": 		start point y for region    
+"endX": 		end point y for region  
+"endY": 		end point y for region  
 
 2. Line crossing  
 "resolution": 	width x height of Web GUI  
 "enable_lc": 	true/false - alarm for line crossing  
 "sensitivity":
-"direction": 	1/2/3 - 0: A<->B, 1: A->B, 2: B->A  
+"direction": 	0/1/2 - 0: A->B, 1: B->A, 2: A<->B  
 "startX": 		start point x for line  
 "startY": 		start point y for line  
 "endX": 		end point x for line  

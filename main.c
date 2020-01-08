@@ -277,11 +277,11 @@ int main(int argc, char *argv[])
 					{
 						eventFlagMD = 1;
 						endFlagMD = 1;
-						if(md_cfg.enable_md)
+						/*if(md_cfg.enable_md)
 						{							
 							//printf("-------------> Motion detected <------------\n");
 							msgq_send(msqid, "MD"); // send "MD" to message queue
-						}
+						}*/
 					}
 					else delayEventMD++;
 				}

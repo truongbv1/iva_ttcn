@@ -521,7 +521,7 @@ void line_crossing(line_crossing_iva lc_cfg, list *listTrack)
             {
                 if (track->status == -1 && tmp == 1)
                 {
-                    if (lc_cfg.direction == 0 || lc_cfg.direction == 1)
+                    if (lc_cfg.direction == 0 || lc_cfg.direction == 2)
                     {
                         if(track->crossLevel == 0)
                         {
@@ -536,7 +536,7 @@ void line_crossing(line_crossing_iva lc_cfg, list *listTrack)
                 {
                     if (track->status == 1 && tmp == -1)
                     {
-                        if (lc_cfg.direction == 0 || lc_cfg.direction == 2)
+                        if (lc_cfg.direction == 1 || lc_cfg.direction == 2)
                         {                            
                             if(track->crossLevel == 0)
                             {

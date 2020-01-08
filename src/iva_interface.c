@@ -7,27 +7,27 @@
 int msqid;
 int msgq_send(int msqid, char* messages) 
 {
-   struct my_msgbuf buf;
-   int len;
-   sprintf(buf.mtext, "%s", messages);
-   len = strlen(buf.mtext);
-   if (msgsnd(msqid, &buf, len + 1, 0) == -1) // +1 for '\0'
-      perror("msgsnd");
+  struct my_msgbuf buf;
+  int len;
+  sprintf(buf.mtext, "%s", messages);   
+  len = strlen(buf.mtext);
+  if (msgsnd(msqid, &buf, len + 1, 0) == -1) // +1 for '\0'
+    perror("msgsnd");
 
-   return 0;
+  return 0;
 }
 
 
 int rm_msgq(int msqid)
 {
-   //IPC_RMID Removes the message queue immediately.
-   if (msgctl(msqid, IPC_RMID, NULL) == -1)
-   {
-      perror("msgctl");
-      exit(1);
-   }
-   printf("Removes the message queue\n");
-   return 0;
+  //IPC_RMID Removes the message queue immediately.
+  if (msgctl(msqid, IPC_RMID, NULL) == -1)
+  {
+    perror("msgctl");
+    exit(1);
+  }
+  printf("Removes the message queue\n");
+  return 0;
 }
 
 
@@ -115,18 +115,18 @@ int get_cfg_iva(motion_detection_iva* md_cfg, line_crossing_iva* lc_cfg, intrusi
   json_object_object_get_ex(rect_iva_obj, "resolution", &tmp_obj);
   json_object_object_get_ex(tmp_obj, "height", &tmp_obj);  
   md_cfg->height = json_object_get_int(tmp_obj);
+  //json_object_object_get_ex(rect_iva_obj, "enable_md", &tmp_obj);
+  //md_cfg->enable_md = json_object_get_boolean(tmp_obj);
   json_object_object_get_ex(rect_iva_obj, "enable_md", &tmp_obj);
-  md_cfg->enable_md = json_object_get_boolean(tmp_obj);
-  json_object_object_get_ex(rect_iva_obj, "enable_mdr", &tmp_obj);
   md_cfg->enable_mdr = json_object_get_boolean(tmp_obj);
-  json_object_object_get_ex(rect_iva_obj, "p_x", &tmp_obj);
+  json_object_object_get_ex(rect_iva_obj, "startX", &tmp_obj);
   md_cfg->region_detection.x = json_object_get_int(tmp_obj);
-  json_object_object_get_ex(rect_iva_obj, "p_y", &tmp_obj);
+  json_object_object_get_ex(rect_iva_obj, "startY", &tmp_obj);
   md_cfg->region_detection.y = json_object_get_int(tmp_obj);
-  json_object_object_get_ex(rect_iva_obj, "width", &tmp_obj);
-  md_cfg->region_detection.width = json_object_get_int(tmp_obj);
-  json_object_object_get_ex(rect_iva_obj, "height", &tmp_obj);
-  md_cfg->region_detection.height = json_object_get_int(tmp_obj);
+  json_object_object_get_ex(rect_iva_obj, "endX", &tmp_obj);
+  md_cfg->region_detection.width = json_object_get_int(tmp_obj) - md_cfg->region_detection.x;
+  json_object_object_get_ex(rect_iva_obj, "endY", &tmp_obj);
+  md_cfg->region_detection.height = json_object_get_int(tmp_obj)- md_cfg->region_detection.y;
   print_json_object(rect_iva_obj, "*** setup motion region ***");
 
   // line
@@ -139,8 +139,8 @@ int get_cfg_iva(motion_detection_iva* md_cfg, line_crossing_iva* lc_cfg, intrusi
   lc_cfg->height = json_object_get_int(tmp_obj);
   json_object_object_get_ex(rect_iva_obj, "enable_lc", &tmp_obj);
   lc_cfg->enable_lc = json_object_get_boolean(tmp_obj);
-  json_object_object_get_ex(rect_iva_obj, "sensitivity", &tmp_obj);
-  lc_cfg->sensitivity = json_object_get_int(tmp_obj);
+  //json_object_object_get_ex(rect_iva_obj, "sensitivity", &tmp_obj);
+  //lc_cfg->sensitivity = json_object_get_int(tmp_obj);
   json_object_object_get_ex(rect_iva_obj, "direction", &tmp_obj);
   lc_cfg->direction = json_object_get_int(tmp_obj);
   json_object_object_get_ex(rect_iva_obj, "startX", &tmp_obj);
@@ -163,8 +163,8 @@ int get_cfg_iva(motion_detection_iva* md_cfg, line_crossing_iva* lc_cfg, intrusi
   its_cfg->height = json_object_get_int(tmp_obj);
   json_object_object_get_ex(rect_iva_obj, "enable_its", &tmp_obj);
   its_cfg->enable_its = json_object_get_boolean(tmp_obj);
-  json_object_object_get_ex(rect_iva_obj, "sensitivity", &tmp_obj);
-  its_cfg->sensitivity = json_object_get_int(tmp_obj);
+  //json_object_object_get_ex(rect_iva_obj, "sensitivity", &tmp_obj);
+  //its_cfg->sensitivity = json_object_get_int(tmp_obj);
   json_object_object_get_ex(rect_iva_obj, "direction", &tmp_obj);
   its_cfg->direction = json_object_get_int(tmp_obj);
   json_object_object_get_ex(rect_iva_obj, "p_x1", &tmp_obj);
